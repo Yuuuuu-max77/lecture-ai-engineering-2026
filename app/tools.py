@@ -5,10 +5,13 @@
 """
 
 import json
+import random
+from datetime import datetime
 from functools import cache
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+LEARNING_LOG_DIR = Path(__file__).resolve().parent.parent / "learning_log"
 MAX_RESULTS = 3
 
 
@@ -77,3 +80,55 @@ def get_lecture_summary(lecture: int) -> str:
         available = sorted(p.stem for p in (DATA_DIR / "lectures").glob("*.md"))
         return f"第{lecture}回の要点はまだありません。用意されている回: {', '.join(available)}"
     return path.read_text(encoding="utf-8")
+
+
+def read_lecture_answer(lecture: int) -> str:
+    """指定した回の解答ファイルを読み、学習記録の作成や内容の振り返りに使う。
+
+    ユーザーが解答ファイルの内容を要約したり、そこから学習記録を作るよう頼んだときに使う。
+    """
+    if lecture < 1:
+        return "講義回は1以上の整数で指定してください。"
+
+    path = Path(__file__).resolve().parent.parent / "lectures" / f"{lecture:02d}" / "answer.md"
+    if not path.is_file():
+        return f"第{lecture}回の解答ファイルが見つかりません。"
+    return path.read_text(encoding="utf-8")
+
+
+def make_quiz(lecture: int) -> str:
+    """指定した回の用語から1つを選び、確認問題と答えを返す。
+
+    「第2回の確認問題を出して」のように、講義内容の復習用問題を
+    求められたときに使う。
+    """
+    terms = [term for term in load_glossary() if term["lecture"] == lecture]
+    if not terms:
+        return f"第{lecture}回の用語が用語集に見つかりませんでした。"
+
+    term = random.choice(terms)
+    return json.dumps(
+        {
+            "lecture": lecture,
+            "term": term["term"],
+            "question": f"「{term['term']}」とは何ですか？",
+            "answer": term["definition"],
+        },
+        ensure_ascii=False,
+    )
+
+
+def save_learning_log(content: str) -> str:
+    """利用者が明示的に保存を依頼した学習記録を learning_log/ に追記する。
+
+    保存前に利用者の承認が必要なツール。学習記録の作成・保存を頼まれたときに使う。
+    """
+    if not content.strip():
+        raise ValueError("保存する学習記録が空です。")
+
+    LEARNING_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    path = LEARNING_LOG_DIR / "learning_log.md"
+    timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+    with path.open("a", encoding="utf-8") as log_file:
+        log_file.write(f"\n## {timestamp}\n\n{content.strip()}\n")
+    return f"学習記録を {path.relative_to(LEARNING_LOG_DIR.parent)} に保存しました。"

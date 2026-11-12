@@ -56,6 +56,8 @@ tests/           テスト（APIキー不要）
 pyproject.toml / uv.lock  依存パッケージとその固定版
 ```
 
+`app.agent` は会話履歴を `learning_log/conversation.json` に保存し、次回起動時に読み込みます。履歴を消して新しく始めるには `uv run python -m app.agent --clear-history` を実行してください。履歴には質問やツールの結果が含まれるため、このファイルは個人用として扱い、共有しないでください（`learning_log/` は Git 管理対象外です）。
+
 ## 提出のしかた
 
 1. 回ごとに作業ブランチを作る（例：`git switch -c lec01`）
